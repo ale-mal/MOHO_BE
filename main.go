@@ -9,6 +9,7 @@ import (
 
 func main() {
 	logger.DInit()
+	logger.DPrintf(logger.DLog, "Starting server")
 
 	chatService := services.NewChatService()
 	chatHandler := handlers.NewChatHandler(chatService)

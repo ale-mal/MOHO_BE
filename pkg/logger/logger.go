@@ -12,22 +12,17 @@ import (
 type logTopic string
 
 const (
-	dClient  logTopic = "CLNT"
-	dCommit  logTopic = "CMIT"
-	dDrop    logTopic = "DROP"
-	dError   logTopic = "ERRO"
-	dInfo    logTopic = "INFO"
-	dLeader  logTopic = "LEAD"
-	dLog     logTopic = "LOG1"
-	dLog2    logTopic = "LOG2"
-	dPersist logTopic = "PERS"
-	dSnap    logTopic = "SNAP"
-	dTerm    logTopic = "TERM"
-	dTest    logTopic = "TEST"
-	dTimer   logTopic = "TIMR"
-	dTrace   logTopic = "TRCE"
-	dVote    logTopic = "VOTE"
-	dWarn    logTopic = "WARN"
+	DClient logTopic = "CLNT"
+	DCommit logTopic = "CMIT"
+	DDrop   logTopic = "DROP"
+	DError  logTopic = "ERRO"
+	DInfo   logTopic = "INFO"
+	DWarn   logTopic = "WARN"
+	DLog    logTopic = "LOG1"
+	DLog2   logTopic = "LOG2"
+	DTest   logTopic = "TEST"
+	DTimer  logTopic = "TIMR"
+	DTrace  logTopic = "TRCE"
 )
 
 var debugStart time.Time

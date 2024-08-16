@@ -5,6 +5,9 @@
 ```
 go mod tidy
 go run main.go
+
+# to run with enabled debug logging
+VERBOSE=1 go run main.go
 ```
 
 ## Docker
