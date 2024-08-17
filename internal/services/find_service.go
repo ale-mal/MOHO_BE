@@ -20,14 +20,14 @@ type FindRequest struct {
 
 type FindService struct {
 	requests *lru.LRUList[uuid.UUID, FindRequest]
-	clients  map[*websocket.Conn]bool
+	clients  map[uuid.UUID]*websocket.Conn
 	mu       sync.Mutex
 }
 
 func (s *FindService) AddClient(client *websocket.Conn, cid uuid.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.clients[client] = true
+	s.clients[cid] = client
 	req := FindRequest{
 		cid:     cid,
 		lastAck: time.Now(),
@@ -39,7 +39,7 @@ func (s *FindService) AddClient(client *websocket.Conn, cid uuid.UUID) {
 func (s *FindService) RemoveClient(client *websocket.Conn, cid uuid.UUID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	delete(s.clients, client)
+	delete(s.clients, cid)
 	s.requests.Remove(cid)
 	logger.DPrintf(logger.DInfo, "Removed client %v", cid)
 }
@@ -97,6 +97,20 @@ func (s *FindService) matchClients() {
 			}
 			logger.DPrintf(logger.DInfo, "Creating game for %v", cids)
 			// todo: create game
+
+			// send "found" message to clients
+			for _, cid := range cids {
+				client, ok := s.clients[cid]
+				if !ok {
+					logger.DPrintf(logger.DError, "Failed to get client %v", cid)
+					continue
+				}
+				err := client.WriteMessage(websocket.TextMessage, []byte("found"))
+				if err != nil {
+					logger.DPrintf(logger.DError, "Failed to send message to client %v: %v", cid, err)
+					continue
+				}
+			}
 		}
 		s.mu.Unlock()
 		time.Sleep(time.Second)
@@ -106,6 +120,7 @@ func (s *FindService) matchClients() {
 func NewFindService() *FindService {
 	s := &FindService{}
 	s.mu = sync.Mutex{}
+	s.clients = make(map[uuid.UUID]*websocket.Conn)
 	s.requests = lru.NewLRUList[uuid.UUID, FindRequest]()
 	go s.matchClients()
 	go s.cleanExpired()
