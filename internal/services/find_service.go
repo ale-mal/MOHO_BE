@@ -14,23 +14,26 @@ const connTimeout = 10 * time.Second
 const gameLimit = 2
 
 type FindRequest struct {
-	cid     uuid.UUID
-	lastAck time.Time
+	cid      uuid.UUID
+	username string
+	lastAck  time.Time
 }
 
 type FindService struct {
-	requests *lru.LRUList[uuid.UUID, FindRequest]
-	clients  map[uuid.UUID]*websocket.Conn
-	mu       sync.Mutex
+	requests    *lru.LRUList[uuid.UUID, FindRequest]
+	clients     map[uuid.UUID]*websocket.Conn
+	mu          sync.Mutex
+	gameService *GameService
 }
 
-func (s *FindService) AddClient(client *websocket.Conn, cid uuid.UUID) {
+func (s *FindService) AddClient(client *websocket.Conn, cid uuid.UUID, username string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients[cid] = client
 	req := FindRequest{
-		cid:     cid,
-		lastAck: time.Now(),
+		cid:      cid,
+		username: username,
+		lastAck:  time.Now(),
 	}
 	s.requests.Put(cid, req)
 	logger.DPrintf(logger.DInfo, "Added client %v", cid)
@@ -96,16 +99,17 @@ func (s *FindService) matchClients() {
 				break
 			}
 			logger.DPrintf(logger.DInfo, "Creating game for %v", cids)
-			// todo: create game
+			sessionId := uuid.New()
+			s.gameService.CreateSession(sessionId)
 
-			// send "found" message to clients
+			// send "found:<sessionId>" message to clients
 			for _, cid := range cids {
 				client, ok := s.clients[cid]
 				if !ok {
 					logger.DPrintf(logger.DError, "Failed to get client %v", cid)
 					continue
 				}
-				err := client.WriteMessage(websocket.TextMessage, []byte("found"))
+				err := client.WriteMessage(websocket.TextMessage, []byte("found:"+sessionId.String()))
 				if err != nil {
 					logger.DPrintf(logger.DError, "Failed to send message to client %v: %v", cid, err)
 					continue
@@ -117,11 +121,12 @@ func (s *FindService) matchClients() {
 	}
 }
 
-func NewFindService() *FindService {
+func NewFindService(gameService *GameService) *FindService {
 	s := &FindService{}
 	s.mu = sync.Mutex{}
 	s.clients = make(map[uuid.UUID]*websocket.Conn)
 	s.requests = lru.NewLRUList[uuid.UUID, FindRequest]()
+	s.gameService = gameService
 	go s.matchClients()
 	go s.cleanExpired()
 	return s

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"main/internal/services"
 	"main/pkg/logger"
 	"net/http"
@@ -27,12 +28,16 @@ func NewFindHandler(service *services.FindService) *FindHandler {
 	}
 }
 
-func (s *FindHandler) getParams(r *http.Request) (uuid.UUID, error) {
+func (s *FindHandler) getParams(r *http.Request) (uuid.UUID, string, error) {
 	cid, err := uuid.Parse(r.URL.Query().Get("cid"))
 	if err != nil {
-		return uuid.Nil, err
+		return uuid.Nil, "", err
 	}
-	return cid, nil
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		return uuid.Nil, "", fmt.Errorf("username is required")
+	}
+	return cid, username, nil
 }
 
 func (s *FindHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -44,13 +49,13 @@ func (s *FindHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	cid, err := s.getParams(r)
+	cid, username, err := s.getParams(r)
 	if err != nil {
 		logger.DPrintf(logger.DError, "Failed to get params: %v", err)
 		return
 	}
 
-	s.service.AddClient(ws, cid)
+	s.service.AddClient(ws, cid, username)
 	defer s.service.RemoveClient(ws, cid)
 
 	for {
