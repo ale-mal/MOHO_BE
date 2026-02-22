@@ -47,24 +47,25 @@ func (h *GameHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	sessionId, _, err := h.getParams(r)
+	sessionId, cid, err := h.getParams(r)
 	if err != nil {
 		logger.DPrintf(logger.DError, "Failed to get params: %v", err)
 		return
 	}
 
-	if err := h.service.JoinSession(sessionId, ws); err != nil {
+	playerIdx, err := h.service.JoinSession(sessionId, cid, ws)
+	if err != nil {
 		logger.DPrintf(logger.DError, "Failed to join session %v: %v", sessionId, err)
 		return
 	}
-	defer h.service.LeaveSession(sessionId, ws)
+	defer h.service.LeaveSession(sessionId, cid)
 
 	for {
-		var msg services.Message
-		err := ws.ReadJSON(&msg)
+		var inp services.InputMessage
+		err := ws.ReadJSON(&inp)
 		if err != nil {
 			break
 		}
-		h.service.BroadcastToSession(sessionId, msg)
+		h.service.SetInput(sessionId, playerIdx, inp)
 	}
 }
